@@ -5,6 +5,10 @@ build/
 *.hex
 *.map
 
+# Python cache
+__pycache__/
+*.py[cod]
+
 # Editor and operating-system files
 .vscode/
 .idea/

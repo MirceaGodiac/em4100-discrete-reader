@@ -32,6 +32,11 @@ enum DecodeMode : uint8_t {
   MODE_COUNT
 };
 
+// Manchester RF/64 is the common EM4100 format. Starting locked avoids
+// overrunning the Uno while testing every format in parallel. Change this to
+// MODE_COUNT only when format auto-detection is specifically needed.
+const DecodeMode START_MODE = MANCHESTER_RF64;
+
 struct Decoder {
   uint16_t header;
   uint8_t pos;
@@ -84,7 +89,7 @@ bool haveLastAccepted = false;
 uint8_t confirmedId[5];
 bool confirmationPending = false;
 DecodeMode confirmedMode = MANCHESTER_RF64;
-DecodeMode lockedMode = MODE_COUNT;
+DecodeMode lockedMode = START_MODE;
 uint8_t printedId[5];
 bool havePrintedId = false;
 
@@ -123,7 +128,6 @@ void rejectPayload(Decoder &decoder) {
 
 void noteValidFrame(const uint8_t id[5], DecodeMode mode) {
   framesThisBlock[mode]++;
-  if (lockedMode == MODE_COUNT) lockedMode = mode;
 
   // Adjacent sample phases may decode the same physical frame. Count those as
   // one observation; a repeated RF/64 frame is hundreds of samples later.
@@ -146,6 +150,7 @@ void noteValidFrame(const uint8_t id[5], DecodeMode mode) {
 
   if (voteCount >= 3 &&
       (!havePrintedId || memcmp(voteId, printedId, 5) != 0)) {
+    if (lockedMode == MODE_COUNT) lockedMode = mode;
     memcpy(confirmedId, voteId, 5);
     confirmedMode = mode;
     confirmationPending = true;

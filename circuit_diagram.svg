@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"
+viewBox="0 0 1200 600" role="img" aria-labelledby="title description">
+<title id="title">125 kHz RFID front end</title>
+<desc id="description">Arduino D9 drives a parallel LC tank through 220 ohms.
+A 1N4148 diode, 100 nanofarad capacitor and 330 ohm resistor form the envelope
+detector connected to A0.</desc>
+<style>
+  .background { fill: white; }
+  .wire, .component, .block {
+    stroke: black; stroke-width: 3; fill: none;
+    stroke-linecap: square; stroke-linejoin: miter;
+  }
+  .node { fill: black; }
+  .title { font: 22px Arial, sans-serif; }
+  .label { font: 17px Arial, sans-serif; }
+  .value { font: 15px Arial, sans-serif; }
+  .pin { font: 15px Arial, sans-serif; }
+</style>
+<rect class="background" width="1200" height="600"/>
+
+<text class="title" x="50" y="45" text-anchor="start">125 kHz RFID front end</text>
+<rect class="block" x="60" y="200" width="180" height="250"/>
+<text class="label" x="150" y="245" text-anchor="middle">U1</text>
+<text class="value" x="150" y="275" text-anchor="middle">Arduino Uno</text>
+<text class="pin" x="215" y="305" text-anchor="end">D9</text>
+<text class="pin" x="150" y="220" text-anchor="middle">A0</text>
+<text class="pin" x="215" y="425" text-anchor="end">GND</text>
+<line class="wire" x1="150" y1="200" x2="150" y2="120"/>
+<line class="wire" x1="150" y1="120" x2="830" y2="120"/>
+<line class="wire" x1="830" y1="120" x2="830" y2="300"/>
+<line class="wire" x1="240" y1="300" x2="330" y2="300"/>
+<text class="value" x="280" y="280" text-anchor="middle">125 kHz</text>
+<path class="component" d="M330 300 L345 285 L370 315 L395 285 L420 315 L445 285 L460 300"/>
+<text class="label" x="395" y="255" text-anchor="middle">R1</text>
+<text class="value" x="395" y="345" text-anchor="middle">220 Ω</text>
+<line class="wire" x1="460" y1="300" x2="520" y2="300"/>
+<circle class="node" cx="520" cy="300" r="5"/>
+<line class="wire" x1="520" y1="300" x2="520" y2="360"/>
+<path class="component" d="M520 360 C495 372 495 388 520 400 C545 412 545 428 520 440"/>
+<line class="wire" x1="520" y1="440" x2="520" y2="500"/>
+<text class="label" x="480" y="390" text-anchor="middle">L1</text>
+<text class="value" x="475" y="415" text-anchor="middle">coil</text>
+<line class="wire" x1="520" y1="300" x2="630" y2="300"/>
+<line class="wire" x1="630" y1="300" x2="630" y2="375"/>
+<line class="wire" x1="605" y1="375" x2="655" y2="375"/>
+<line class="wire" x1="605" y1="395" x2="655" y2="395"/>
+<line class="wire" x1="630" y1="395" x2="630" y2="500"/>
+<text class="label" x="675" y="380" text-anchor="start">C1</text>
+<text class="value" x="675" y="405" text-anchor="start">100 nF</text>
+<line class="wire" x1="630" y1="300" x2="700" y2="300"/>
+<path class="component" d="M700 270 L700 330 L750 300 Z"/>
+<line class="wire" x1="750" y1="270" x2="750" y2="330"/>
+<line class="wire" x1="750" y1="300" x2="830" y2="300"/>
+<text class="label" x="725" y="250" text-anchor="middle">D1</text>
+<text class="value" x="725" y="355" text-anchor="middle">1N4148</text>
+<circle class="node" cx="830" cy="300" r="5"/>
+<line class="wire" x1="830" y1="300" x2="910" y2="300"/>
+<line class="wire" x1="910" y1="300" x2="910" y2="375"/>
+<line class="wire" x1="885" y1="375" x2="935" y2="375"/>
+<line class="wire" x1="885" y1="395" x2="935" y2="395"/>
+<line class="wire" x1="910" y1="395" x2="910" y2="500"/>
+<text class="label" x="870" y="380" text-anchor="end">C2</text>
+<text class="value" x="870" y="405" text-anchor="end">100 nF</text>
+<line class="wire" x1="830" y1="300" x2="1030" y2="300"/>
+<line class="wire" x1="1030" y1="300" x2="1030" y2="350"/>
+<path class="component" d="M1030 350 L1015 365 L1045 390 L1015 415 L1045 440 L1015 465 L1030 480"/>
+<line class="wire" x1="1030" y1="480" x2="1030" y2="500"/>
+<text class="label" x="1070" y="400" text-anchor="start">R2</text>
+<text class="value" x="1070" y="425" text-anchor="start">330 Ω</text>
+<line class="wire" x1="240" y1="420" x2="280" y2="420"/>
+<line class="wire" x1="280" y1="420" x2="280" y2="500"/>
+<line class="wire" x1="280" y1="500" x2="1030" y2="500"/>
+<line class="wire" x1="655" y1="500" x2="655" y2="525"/>
+<line class="wire" x1="625" y1="525" x2="685" y2="525"/>
+<line class="wire" x1="637" y1="538" x2="673" y2="538"/>
+<line class="wire" x1="647" y1="551" x2="663" y2="551"/>
+</svg>
