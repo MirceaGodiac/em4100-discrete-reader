@@ -7,6 +7,9 @@
  *
  * The decoder tries Manchester and biphase at RF/64 and RF/32, validates the
  * complete EM4100 parity structure, then locks onto the detected format.
+ * In Manchester RF/64 mode it also captures the next 64 bits. An exact repeat
+ * of the validated EM4100 frame is reported as 64-bit operation; a stable,
+ * different suffix is reported as a 128-bit candidate.
  *
  * Circuit:
  *   D9 -- 220R -- tank node
@@ -44,6 +47,8 @@ struct Decoder {
   uint8_t colXor;
   uint8_t nibble;
   uint8_t id[5];
+  uint64_t trailingData;
+  uint8_t trailingBits;
 };
 
 struct BiphaseDecoder {
@@ -93,6 +98,22 @@ DecodeMode lockedMode = START_MODE;
 uint8_t printedId[5];
 bool havePrintedId = false;
 
+uint64_t cycleTailCandidate = 0;
+uint8_t cycleIdCandidate[5];
+uint8_t cycleVotes = 0;
+uint32_t lastCycleSample = 0;
+bool haveLastCycleSample = false;
+
+uint64_t confirmedCycleTail = 0;
+uint8_t confirmedCycleId[5];
+bool cycleClassificationPending = false;
+
+uint64_t printedCycleTail = 0;
+uint8_t printedCycleId[5];
+bool havePrintedCycleClassification = false;
+uint8_t fallbackId[5];
+bool haveReportedFallback = false;
+
 volatile uint16_t missedAdcStarts = 0;
 volatile uint16_t lateAdcReads = 0;
 
@@ -112,6 +133,8 @@ void initDecoder(Decoder &decoder) {
   decoder.colXor = 0;
   decoder.nibble = 0;
   memset(decoder.id, 0, sizeof(decoder.id));
+  decoder.trailingData = 0;
+  decoder.trailingBits = 0;
 }
 
 void beginPayload(Decoder &decoder) {
@@ -124,6 +147,67 @@ void beginPayload(Decoder &decoder) {
 
 void rejectPayload(Decoder &decoder) {
   decoder.pos = SEARCHING;
+}
+
+void appendFrameBit(uint64_t &frame, uint8_t bit) {
+  frame = (frame << 1) | (bit & 1U);
+}
+
+uint64_t encodeEm4100(const uint8_t id[5]) {
+  uint64_t frame = 0;
+  uint8_t columnParity[4] = {0, 0, 0, 0};
+
+  for (uint8_t i = 0; i < 9; i++) appendFrameBit(frame, 1);
+  for (uint8_t row = 0; row < 10; row++) {
+    const uint8_t value = id[row >> 1];
+    const uint8_t nibble =
+        (row & 1U) ? (value & 0x0F) : (value >> 4);
+    uint8_t rowParity = 0;
+
+    for (uint8_t col = 0; col < 4; col++) {
+      const uint8_t bit = (nibble >> (3 - col)) & 1U;
+      appendFrameBit(frame, bit);
+      rowParity ^= bit;
+      columnParity[col] ^= bit;
+    }
+    appendFrameBit(frame, rowParity);
+  }
+  for (uint8_t col = 0; col < 4; col++) {
+    appendFrameBit(frame, columnParity[col]);
+  }
+  appendFrameBit(frame, 0);
+  return frame;
+}
+
+void noteCompleteCycle(const uint8_t id[5], uint64_t trailing) {
+  // Adjacent phase candidates can decode the same physical transmission.
+  if (haveLastCycleSample &&
+      trailing == cycleTailCandidate &&
+      memcmp(id, cycleIdCandidate, 5) == 0 &&
+      (uint32_t)(totalSamples - lastCycleSample) < 512UL) {
+    return;
+  }
+  lastCycleSample = totalSamples;
+  haveLastCycleSample = true;
+
+  if (cycleVotes != 0 &&
+      trailing == cycleTailCandidate &&
+      memcmp(id, cycleIdCandidate, 5) == 0) {
+    if (cycleVotes < 255) cycleVotes++;
+  } else {
+    cycleTailCandidate = trailing;
+    memcpy(cycleIdCandidate, id, 5);
+    cycleVotes = 1;
+  }
+
+  if (cycleVotes >= 3 &&
+      (!havePrintedCycleClassification ||
+       trailing != printedCycleTail ||
+       memcmp(id, printedCycleId, 5) != 0)) {
+    confirmedCycleTail = trailing;
+    memcpy(confirmedCycleId, id, 5);
+    cycleClassificationPending = true;
+  }
 }
 
 void noteValidFrame(const uint8_t id[5], DecodeMode mode) {
@@ -158,6 +242,16 @@ void noteValidFrame(const uint8_t id[5], DecodeMode mode) {
 }
 
 void feedBit(Decoder &decoder, uint8_t bit, DecodeMode mode) {
+  if (decoder.trailingBits != 0) {
+    decoder.trailingData = (decoder.trailingData << 1) | (bit & 1U);
+    decoder.trailingBits--;
+    if (decoder.trailingBits == 0) {
+      noteCompleteCycle(decoder.id, decoder.trailingData);
+      decoder.header = 0;
+    }
+    return;
+  }
+
   decoder.header = ((decoder.header << 1) | bit) & 0x03FF;
 
   if (decoder.pos == SEARCHING) {
@@ -197,7 +291,13 @@ void feedBit(Decoder &decoder, uint8_t bit, DecodeMode mode) {
       return;
     }
   } else {
-    if (bit == 0) noteValidFrame(decoder.id, mode);
+    if (bit == 0) {
+      noteValidFrame(decoder.id, mode);
+      if (mode == MANCHESTER_RF64) {
+        decoder.trailingData = 0;
+        decoder.trailingBits = 64;
+      }
+    }
     rejectPayload(decoder);
     return;
   }
@@ -207,6 +307,7 @@ void feedBit(Decoder &decoder, uint8_t bit, DecodeMode mode) {
 
 void feedInvalid(Decoder &decoder) {
   decoder.header = 0;
+  decoder.trailingBits = 0;
   rejectPayload(decoder);
 }
 
@@ -431,6 +532,12 @@ void printHexId(const uint8_t id[5]) {
   }
 }
 
+void printHex64(uint64_t value) {
+  for (int8_t nibble = 15; nibble >= 0; nibble--) {
+    Serial.print((uint8_t)((value >> (nibble * 4)) & 0x0F), HEX);
+  }
+}
+
 const __FlashStringHelper *modeName(DecodeMode mode) {
   switch (mode) {
     case MANCHESTER_RF64: return F("Manchester RF/64");
@@ -488,6 +595,48 @@ void reportAndResetBlock() {
     confirmationPending = false;
   }
 
+  if (cycleClassificationPending) {
+    const uint64_t repeatedFrame = encodeEm4100(confirmedCycleId);
+    Serial.print(F("Classification for ID "));
+    printHexId(confirmedCycleId);
+    Serial.println(':');
+    if (confirmedCycleTail == repeatedFrame) {
+      Serial.println(F("Transmission length: 64 bits (validated frame repeats)."));
+      Serial.println(F("No distinct second 64-bit segment was observed."));
+    } else {
+      Serial.println(F("Transmission length: 128-bit candidate."));
+      Serial.print(F("First 64 bits:  "));
+      printHex64(repeatedFrame);
+      Serial.println();
+      Serial.print(F("Second 64 bits: "));
+      printHex64(confirmedCycleTail);
+      Serial.println();
+    }
+
+    printedCycleTail = confirmedCycleTail;
+    memcpy(printedCycleId, confirmedCycleId, 5);
+    havePrintedCycleClassification = true;
+    cycleClassificationPending = false;
+  }
+
+  const bool classifiedCurrentId =
+      havePrintedCycleClassification &&
+      memcmp(voteId, printedCycleId, 5) == 0;
+  if (!cycleClassificationPending &&
+      voteCount >= 6 &&
+      !classifiedCurrentId &&
+      (!haveReportedFallback || memcmp(voteId, fallbackId, 5) != 0)) {
+    Serial.print(F("Fallback for ID "));
+    printHexId(voteId);
+    Serial.println(':');
+    Serial.println(F("Decode mode: validated 64-bit EM4100 frame only."));
+    Serial.println(F("Total transmission length is undetermined."));
+    Serial.println(F("A valid repeating ID was found, but no stable distinct"));
+    Serial.println(F("second 64-bit segment could be decoded."));
+    memcpy(fallbackId, voteId, 5);
+    haveReportedFallback = true;
+  }
+
   Serial.flush();
 
   blockSamples = 0;
@@ -525,7 +674,8 @@ void setup() {
 
   initHardware();
 
-  Serial.println(F("EM4100 synchronous multi-format reader ready."));
+  Serial.println(F("EM4100 128/64-bit classifier ready."));
+  Serial.println(F("A distinct stable suffix is required for a 128-bit result."));
   Serial.println(F("Keep the tag centered and still for several seconds."));
   Serial.flush();
 

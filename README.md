@@ -1,16 +1,28 @@
-# Discrete 125 kHz EM4100 Reader / Writer
+# Discrete 125 kHz EM4100/T5577 CLI
 
-An experimental Arduino Uno project for reading standard 64-bit EM4100
-transmissions and writing compatible T5577/T5557 tags with a hand-wound coil
-and passive envelope detector. The tested hardware works only at short range
-and uses no dedicated RFID reader IC, comparator, or external coil driver.
+An experimental Arduino Uno project for classifying 64-bit and candidate
+128-bit EM4100-style transmissions, and writing standard 64-bit or extended
+128-bit data to compatible T5577 tags. It uses a hand-wound coil and passive
+envelope detector with no dedicated RFID reader IC, comparator, or external
+coil driver.
+
+The primary [`em4100_cli`](em4100_cli/) sketch combines reading, preparation,
+writing, exact verification, and recovery in one fixed-buffer serial CLI.
 
 ## Project structure
 
 - [`coil_tuner/`](coil_tuner/) — sweep the LC tank and locate resonance.
-- [`em4100_reader/`](em4100_reader/) — decode parity-valid EM4100 frames.
+- [`em4100_cli/`](em4100_cli/) — primary combined reader and guarded
+  64/128-bit ATA5577 writer.
+- [`em4100_reader/`](em4100_reader/) — decode EM4100 frames and classify a
+  repeated 64-bit frame versus a stable distinct second half; retained as a
+  standalone reference reader.
 - [`t5577_writer/`](t5577_writer/) — prepare, write, and verify standard
-  EM4100 data on compatible rewritable tags.
+  EM4100 data; retained as a standalone reference writer.
+- [`t5577_128_writer/`](t5577_128_writer/) — guarded ATA5577 B1–B4 writer
+  retained as a standalone reference writer.
+- [`t5577_maxblk_test/`](t5577_maxblk_test/) — advanced destructive
+  capability, direct-read, RF/32, and MAXBLK diagnostics for sacrificial tags.
 
 Each sketch folder has its own setup and usage guide. All sketches use
 115200 baud.
@@ -49,10 +61,12 @@ python generate_circuit_diagram.py
 ## Quick start
 
 1. Upload [`coil_tuner.ino`](coil_tuner/coil_tuner.ino) and tune near 125 kHz.
-2. Upload [`em4100_reader.ino`](em4100_reader/em4100_reader.ino) and confirm
-   reliable short-range reads.
-3. Upload [`t5577_writer.ino`](t5577_writer/t5577_writer.ino) only for a known
-   compatible rewritable tag.
+2. Upload [`em4100_cli.ino`](em4100_cli/em4100_cli.ino), open Serial Monitor at
+   115200 baud with Newline enabled, and run `READ`.
+3. Enter `STOP`, then use `PREP64` or `PREP128` followed by receive-only
+   `VERIFY`.
+4. Run `WRITE` only with one known compatible rewritable tag centered over the
+   coil. Keep power connected until exact verification or recovery finishes.
 
 ## Safety and limitations
 
