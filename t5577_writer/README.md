@@ -1,5 +1,9 @@
 # T5577/T5557 EM4100 writer
 
+> This standalone writer is retained as a compact reference. The primary
+> [`em4100_cli`](../em4100_cli/) sketch combines reading, stronger exact
+> `frame || frame` verification, writing, and recovery in one interface.
+
 `t5577_writer.ino` prepares, writes, and verifies a standard parity-valid
 64-bit EM4100 transmission on compatible T5577/T5557 tags. It uses the D9 LC
 tank and A0 passive envelope detector. This is experimental, tested
